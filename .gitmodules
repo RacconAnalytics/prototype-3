@@ -18,6 +18,11 @@
 	url = https://github.com/RacconAnalytics/nlp-service-nvidia.git
 	branch = master
 
+[submodule "reverse-proxy"]
+	path = reverse-proxy
+	url = https://github.com/RacconAnalytics/reverse-proxy.git
+	branch = main
+
 [submodule "users-service"]
 	path = users-service
 	url = https://github.com/RacconAnalytics/users-service.git
@@ -31,8 +36,4 @@
 [submodule "youtube-acquisition-service"]
 	path = youtube-acquisition-service
 	url = https://github.com/RacconAnalytics/youtube-acquisition-service.git
-	branch = main
-[submodule "reverse-proxy"]
-	path = reverse-proxy
-	url = https://github.com/RacconAnalytics/reverse-proxy.git
 	branch = main
