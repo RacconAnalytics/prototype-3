@@ -138,11 +138,20 @@ services:
       - google-trends-service
       - nlp-service
 
+  reverse-proxy:
+    build:
+      context: ./reverse-proxy
+      dockerfile: DockerFile
+    ports:
+      - "8081:8081"
+    depends_on:
+      - api-gateway
+
   web-page:
     build:
       context: ./web-page
       args:
-        NEXT_PUBLIC_API_URL: "http://localhost:8080"
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     ports:
       - "3000:3000"
     environment:
