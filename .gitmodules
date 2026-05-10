@@ -1,7 +1,7 @@
 [submodule "api-gateway"]
 	path = api-gateway
 	url = https://github.com/RacconAnalytics/api-gateway.git
-	branch = main
+	branch = master
 
 [submodule "desktop-frontend"]
 	path = desktop-frontend
@@ -16,12 +16,12 @@
 [submodule "nlp-service-nvidia"]
 	path = nlp-service-nvidia
 	url = https://github.com/RacconAnalytics/nlp-service-nvidia.git
-	branch = main
+	branch = master
 
 [submodule "users-service"]
 	path = users-service
 	url = https://github.com/RacconAnalytics/users-service.git
-	branch = main
+	branch = master
 
 [submodule "web-page"]
 	path = web-page
