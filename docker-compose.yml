@@ -1,0 +1,155 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand(\"ping\")'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5 bash -c 'cat < /dev/null > /dev/tcp/rabbitmq/5672'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  users-service:
+    build: ./users-service
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
+      FRONTEND_OAUTH_REDIRECT_URL: ${FRONTEND_OAUTH_REDIRECT_URL}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL}
+      SMTP_PROVIDER: ${SMTP_PROVIDER}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL}
+    depends_on:
+      - postgres
+      - redis
+
+  nlp-service:
+    build: ./nlp-service-nvidia
+    ports:
+      - "8193:8193"
+    environment:
+      NVIDIA_NIM_API_KEY: ${NVIDIA_NIM_API_KEY}
+
+  google-trends-service:
+    build: ./google-trends-acquisition-service
+    ports:
+      - "8001:8001"
+    environment:
+      MONGO_URI: ${MONGO_URI}
+      MONGODB_URI: ${MONGODB_URI}
+      MONGODB_DB_NAME: ${MONGODB_DB_NAME}
+      USER_SERVICE_URL: ${USER_SERVICE_URL}
+      NLP_SERVICE_URL: ${NLP_SERVICE_URL}
+      NLP_INFERENCE_ENDPOINT: ${NLP_INFERENCE_ENDPOINT}
+      NLP_REQUEST_TIMEOUT: ${NLP_REQUEST_TIMEOUT}
+    depends_on:
+      - mongo
+      - users-service
+      - nlp-service
+
+  youtube-service:
+    build: ./youtube-acquisition-service
+    ports:
+      - "8000:8000"
+    environment:
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
+      MONGO_URI: ${MONGO_URI}
+      USER_SERVICE_URL: ${USER_SERVICE_URL}
+      NLP_SERVICE_URL: ${NLP_SERVICE_URL}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      users-service:
+        condition: service_started
+      nlp-service:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: ${PORT}
+      JWT_SECRET: ${JWT_SECRET}
+      USER_SERVICE_URL: ${USER_SERVICE_URL}
+      YOUTUBE_SCRAPPER_SERVICE_URL: ${YOUTUBE_SCRAPPER_SERVICE_URL}
+      GOOGLE_TRENDS_SERVICE_URL: ${GOOGLE_TRENDS_SERVICE_URL}
+      NLP_SERVICE_URL: ${NLP_SERVICE_URL}
+      PROXY_TIMEOUT_SECONDS: ${PROXY_TIMEOUT_SECONDS}
+    depends_on:
+      - users-service
+      - youtube-service
+      - google-trends-service
+      - nlp-service
+
+  web-page:
+    build:
+      context: ./web-page
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:8080"
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    depends_on:
+      - api-gateway
+
+volumes:
+  postgres_data:
+  mongo_data:
