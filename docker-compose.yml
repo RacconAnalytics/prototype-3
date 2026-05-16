@@ -73,7 +73,6 @@ services:
     build: ./google-trends-acquisition-service
     environment:
       MONGO_URI: ${MONGO_URI}
-      MONGODB_URI: ${MONGODB_URI}
       MONGODB_DB_NAME: ${MONGODB_DB_NAME}
       USER_SERVICE_URL: ${USER_SERVICE_URL}
       NLP_SERVICE_URL: ${NLP_SERVICE_URL}
@@ -137,7 +136,7 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     depends_on:
-      - reverse-proxy
+      - api-gateway
 
 volumes:
   postgres_data:
