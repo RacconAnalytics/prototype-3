@@ -105,7 +105,7 @@ services:
       - "8000:8000"
     environment:
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
-      MONGO_URI: ${MONGO_URI}
+      MONGODB_URI: ${MONGODB_URI}
       USER_SERVICE_URL: ${USER_SERVICE_URL}
       NLP_SERVICE_URL: ${NLP_SERVICE_URL}
     depends_on:
@@ -157,7 +157,7 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     depends_on:
-      - api-gateway
+      - reverse-proxy
 
 volumes:
   postgres_data:
