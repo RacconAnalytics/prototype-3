@@ -39,4 +39,4 @@
 	branch = main
 [submodule "reverse-proxy-web"]
 	path = reverse-proxy-web
-	url = https://github.com/juserranor/reverse-proxy-web.git
+	url = https://github.com/RacconAnalytics/reverse-proxy-web.git
