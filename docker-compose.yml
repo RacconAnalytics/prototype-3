@@ -175,7 +175,7 @@ services:
     ports:
       - "8081:8081"
     networks:
-      - public_web
+      - public_desktop
       - private_services
     depends_on:
       - api-gateway
@@ -187,6 +187,9 @@ services:
     ports:
       - "8443:443"
       - "8080:80"
+    networks:
+      - public_web
+      - private_services
     volumes:
       - ./reverse-proxy-web/certs:/etc/nginx/certs:ro
     healthcheck:
