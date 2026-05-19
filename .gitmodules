@@ -37,3 +37,6 @@
 	path = youtube-acquisition-service
 	url = https://github.com/RacconAnalytics/youtube-acquisition-service.git
 	branch = main
+[submodule "reverse-proxy-web"]
+	path = reverse-proxy-web
+	url = https://github.com/RacconAnalytics/reverse-proxy-web.git

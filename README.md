@@ -107,13 +107,19 @@ Se implementó un patrón arquitécnico con un componente orquestador que hace r
 ### Web Frontend
 
 - **Stack:** Next.js 14, React 18, TailwindCSS 4, DaisyUI 5, Recharts, Framer Motion
-- **Puerto:** 3000
+- **Puerto:** 3000 (privado, interno). Acceso publico via reverse-proxy-web en 8443.
 - **Responsabilidades:**
   1. Renderizar UI de autenticación (login, registro, recuperación de contraseña, OAuth callback)
   2. Dashboard con gráficas interactivas de tendencias y análisis
-  3. Comunicación con el API Gateway vía HTTP REST
+  3. Comunicación con el API Gateway vía HTTP REST desde SSR
 - **Endpoints que consume:** `GET/POST /api/users/*`, `GET /api/youtube/*`, `GET /api/trends/*`
-- **Dependencias:** api-gateway (HTTP REST)
+- **Dependencias:** api-gateway (HTTP REST) via route handler interno
+
+**Flujo de acceso (Web SSR):**
+
+Navegador -> reverse-proxy-web (HTTPS 8443) -> web-page (SSR, privado) -> api-gateway (privado)
+
+El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el servidor de Next.js y se reenvian por red interna al API Gateway.
 
 ### Desktop Frontend
 

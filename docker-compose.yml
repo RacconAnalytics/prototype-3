@@ -179,6 +179,22 @@ services:
       - private_services
     depends_on:
       - api-gateway
+      
+  reverse-proxy-web:
+    build:
+      context: ./reverse-proxy-web
+      dockerfile: DockerFile
+    ports:
+      - "8443:443"
+      - "8080:80"
+    volumes:
+      - ./reverse-proxy-web/certs:/etc/nginx/certs:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fk", "https://localhost/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
       - web-page
 
   web-page:
@@ -188,6 +204,7 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      API_GATEWAY_INTERNAL_URL: ${API_GATEWAY_INTERNAL_URL}
     networks:
       - private_services
     depends_on:
