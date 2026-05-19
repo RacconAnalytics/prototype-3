@@ -5,6 +5,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    networks:
+      - private_internal
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -15,16 +17,33 @@ services:
 
   mongo:
     image: mongo:6
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+    networks:
+      - private_internal
     volumes:
       - mongo_data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand(\"ping\")'"]
+      test: [
+        "CMD-SHELL",
+        "mongosh --username ${MONGO_INITDB_ROOT_USERNAME} \
+        --password ${MONGO_INITDB_ROOT_PASSWORD} \
+        --authenticationDatabase admin \
+        --eval 'db.adminCommand(\"ping\")'"
+      ]
       interval: 30s
       timeout: 5s
       retries: 3
 
   rabbitmq:
     image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - private_internal
     healthcheck:
       test: ["CMD-SHELL", "timeout 5 bash -c 'cat < /dev/null > /dev/tcp/rabbitmq/5672'"]
       interval: 30s
@@ -33,8 +52,18 @@ services:
 
   redis:
     image: redis:7
+    command: redis-server --requirepass ${REDIS_PASSWORD} # Seguridad básica con contraseña
+    networks:
+      - private_internal
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "-a",
+          "${REDIS_PASSWORD}",
+          "ping"
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,6 +73,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
@@ -60,6 +90,9 @@ services:
       SMTP_PASS: ${SMTP_PASS}
       SMTP_FROM: ${SMTP_FROM}
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL}
+    networks:
+      - private_services
+      - private_internal
     depends_on:
       - postgres
       - redis
@@ -68,16 +101,25 @@ services:
     build: ./nlp-service-nvidia
     environment:
       NVIDIA_NIM_API_KEY: ${NVIDIA_NIM_API_KEY}
+    networks:
+      - private_services
+    
 
   google-trends-service:
     build: ./google-trends-acquisition-service
     environment:
-      MONGO_URI: ${MONGO_URI}
       MONGODB_DB_NAME: ${MONGODB_DB_NAME}
+      MONGO_HOST: ${MONGO_HOST}
+      MONGO_PORT: ${MONGO_PORT}
+      MONGO_USERNAME: ${MONGO_USERNAME}
+      MONGO_PASSWORD: ${MONGO_PASSWORD}
       USER_SERVICE_URL: ${USER_SERVICE_URL}
       NLP_SERVICE_URL: ${NLP_SERVICE_URL}
       NLP_INFERENCE_ENDPOINT: ${NLP_INFERENCE_ENDPOINT}
       NLP_REQUEST_TIMEOUT: ${NLP_REQUEST_TIMEOUT}
+    networks:
+      - private_services
+      - private_internal
     depends_on:
       - mongo
       - users-service
@@ -88,8 +130,13 @@ services:
     environment:
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
       MONGODB_URI: ${MONGODB_URI}
+      REDIS_URL: ${REDIS_URL}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       USER_SERVICE_URL: ${USER_SERVICE_URL}
       NLP_SERVICE_URL: ${NLP_SERVICE_URL}
+    networks:
+      - private_services
+      - private_internal
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -112,6 +159,9 @@ services:
       GOOGLE_TRENDS_SERVICE_URL: ${GOOGLE_TRENDS_SERVICE_URL}
       NLP_SERVICE_URL: ${NLP_SERVICE_URL}
       PROXY_TIMEOUT_SECONDS: ${PROXY_TIMEOUT_SECONDS}
+    networks:
+      - private_services
+      - private_internal    # por si necesita consultar Redis directamente
     depends_on:
       - users-service
       - youtube-service
@@ -124,6 +174,9 @@ services:
       dockerfile: DockerFile
     ports:
       - "8081:8081"
+    networks:
+      - public_web
+      - private_services
     depends_on:
       - api-gateway
       - web-page
@@ -135,8 +188,32 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    networks:
+      - private_services
     depends_on:
       - api-gateway
+
+# Redes por zona
+networks:
+  public_web:
+    driver: bridge
+    name: raccon_public_web
+
+  public_desktop:
+    driver: bridge
+    name: raccon_public_desktop
+
+  private_internal:
+    driver: bridge
+    name: raccon_private_internal
+    internal: true        # para DBs, Redis
+                          # componentes que NUNCA necesitan internet
+
+  private_services:
+    driver: bridge
+    name: raccon_private_services
+                          # sin internal: true
+                          # para microservicios que necesitan APIs externas
 
 volumes:
   postgres_data:
