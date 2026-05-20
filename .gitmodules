@@ -40,3 +40,6 @@
 [submodule "reverse-proxy-web"]
 	path = reverse-proxy-web
 	url = https://github.com/RacconAnalytics/reverse-proxy-web.git
+[submodule "token-authentication-tester"]
+	path = token-authentication-tester
+	url = https://github.com/RacconAnalytics/token-authentication-tester
