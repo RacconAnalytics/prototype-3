@@ -23,6 +23,16 @@
 	url = https://github.com/RacconAnalytics/reverse-proxy.git
 	branch = main
 
+[submodule "reverse-proxy-web"]
+	path = reverse-proxy-web
+	url = https://github.com/RacconAnalytics/reverse-proxy-web.git
+	branch = main
+
+[submodule "token-authentication-tester"]
+	path = token-authentication-tester
+	url = https://github.com/RacconAnalytics/token-authentication-tester.git
+	branch = main
+
 [submodule "users-service"]
 	path = users-service
 	url = https://github.com/RacconAnalytics/users-service.git
@@ -37,6 +47,3 @@
 	path = youtube-acquisition-service
 	url = https://github.com/RacconAnalytics/youtube-acquisition-service.git
 	branch = main
-[submodule "reverse-proxy-web"]
-	path = reverse-proxy-web
-	url = https://github.com/RacconAnalytics/reverse-proxy-web.git
