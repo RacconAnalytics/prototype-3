@@ -31,6 +31,7 @@
     - [4.1.3. Escenarios de seguridad](#413-escenarios-de-seguridad)
     - [4.1.4. Implementación](#414-implementación)
     - [4.1.5. Pruebas](#415-pruebas)
+  - [4.2. Secure Channel](#42-secure-channel)
 - [5. Prototype](#5-prototype)
   - [5.1. Instructions](#51-instructions)
 
@@ -754,6 +755,404 @@ Protecciones confirmadas relevantes a Network Segmentation:
   ✓ internal=true configurado en raccon_private_internal
   ✓ Solo reverse-proxy (8081) y reverse-proxy-web (8443/8080) accesibles externamente
 ```
+
+---
+
+### 4.2. Secure Channel
+
+#### 4.2.1. reverse-proxy-web
+
+Reverse proxy para el frontend web SSR. Este proxy se ubica entre el navegador y el servicio Next.js `web-page`, permitiendo exponer un punto de entrada publico y mantener privado el servicio SSR dentro de la red interna.
+
+#### 4.2.2. System Overview
+
+Este componente aplica el patron Reverse Proxy para:
+
+- Centralizar el acceso al frontend web
+- Ocultar la topologia interna del servicio SSR
+- Terminar TLS y proteger el canal con el navegador
+- Implementar limitacion de velocidad en el borde
+
+#### 4.2.3. Architecture Views
+
+##### 4.2.3.1. Component & Connector View
+
+El flujo de peticiones es:
+
+```text
+Navegador -> reverse-proxy-web (TLS) -> web-page (Next.js SSR) -> api-gateway (privado)
+```
+
+El navegador solo conoce el proxy. El servicio `web-page` no se expone a internet.
+
+##### 4.2.3.2. HTTPS Flow Diagram
+
+```mermaid
+sequenceDiagram
+  participant Browser as Navegador
+  participant Proxy as reverse-proxy-web (HTTPS 443)
+  participant Web as web-page (HTTP 3000)
+  participant Api as api-gateway (HTTP 8080)
+  Browser->>Proxy: Solicitud HTTPS
+  Proxy->>Web: Solicitud HTTP interna
+  Web->>Api: /api/* (SSR route handler)
+  Api-->>Web: Respuesta API
+  Web-->>Proxy: Respuesta HTTP
+  Proxy-->>Browser: Respuesta HTTPS
+```
+
+##### 4.2.3.3. Deployment View
+
+El proxy expone los puertos 80 y 443. Todo el trafico HTTPS entra por 443 y se reenvia a `web-page:3000` dentro de la red de Docker. El SSR enruta `/api/*` hacia `api-gateway:8080` por red interna.
+
+```mermaid
+flowchart LR
+  Browser[Navegador]
+  Proxy[reverse-proxy-web\n80->443\nTLS Termination]
+  Web[web-page\nNext.js SSR\n:3000]
+  Api[api-gateway\n:8080]
+  Browser -- HTTPS 443 --> Proxy
+  Browser -- HTTP 80 --> Proxy
+  Proxy -- HTTP 3000 --> Web
+  Web -- HTTP 8080 --> Api
+```
+
+#### 4.2.4. Technical Guide
+
+##### 4.2.4.1. TLS Termination
+
+El canal seguro se implementa terminando TLS en Nginx. El proxy presenta un certificado valido, negocia TLS 1.2/1.3 y fuerza HTTPS con redireccion desde 80. Esto evita ataques de tipo man-in-the-middle al cifrar y autenticar el canal navegador -> proxy.
+
+Configuracion clave en Nginx:
+
+- `ssl_certificate` y `ssl_certificate_key` para el certificado
+- `ssl_protocols TLSv1.2 TLSv1.3`
+- `Strict-Transport-Security` para prevenir downgrade
+
+**Para que funciona:** garantiza confidencialidad e integridad del trafico entre el navegador y el reverse proxy. El usuario se conecta a un punto unico con identidad verificada mediante certificado.
+
+**Como se implementa:**
+
+- TLS en el puerto 443 con certificado valido
+- Redireccion HTTP -> HTTPS en el puerto 80
+- HSTS para forzar HTTPS en conexiones futuras
+
+**Problemas que soluciona:**
+
+- Evita que terceros puedan leer credenciales, tokens o contenido sensible en transito
+- Previene modificaciones de respuestas o inyeccion de contenido en la red
+- Reduce el riesgo de secuestro de sesion por sniffing de cookies
+
+**Ataques mitigados:**
+
+- Man-in-the-middle en redes publicas o WiFi inseguro
+- Sniffing de trafico en texto plano
+- Downgrade a HTTP cuando el cliente intenta usar HTTPS
+
+**Por que se debe implementar:**
+
+- El frontend SSR transmite datos de sesion y contenido dinamico
+- El proxy es el unico punto expuesto; cifrar aqui protege todo el canal publico
+- Es un requisito basico de seguridad para exponer servicios web en internet
+
+##### 4.2.4.2. Rate Limiting
+
+Se limita el trafico por IP para proteger el frontend web contra abuso y ataques de capa 7.
+
+#### 4.2.5. Prerequisites
+
+- Docker y Docker Compose instalados
+- Certificado TLS disponible
+- Variables de entorno correctas para que el prototipo funcione en la maquina de pruebas
+
+#### 4.2.6. Configuration
+
+El servicio `reverse-proxy-web` expone puertos y monta certificados:
+
+- Puertos: 8443 (HTTPS) y 8080 (HTTP -> HTTPS)
+- Volumen TLS: `./reverse-proxy-web/certs:/etc/nginx/certs:ro`
+- Healthcheck: `https://localhost/health`
+
+El certificado de prueba puede ser self-signed para desarrollo local. Los navegadores mostraran advertencias si no pertenece a una CA confiable. No debe compartirse publicamente.
+
+#### 4.2.7. How to Run
+
+Desde la raiz del repositorio:
+
+```bash
+docker compose up --build
+```
+
+Chequeo de salud:
+
+```bash
+docker compose ps
+```
+
+El servicio `reverse-proxy-web` marcara `healthy` cuando HTTPS responda en `/health`.
+
+El proxy web expone:
+
+- HTTPS: 8443
+- HTTP: 8080 (redirige a HTTPS)
+
+#### 4.2.8. How to Verify
+
+1. Certificados cargados:
+
+```bash
+ls -l reverse-proxy-web/certs
+```
+
+2. Healthcheck HTTPS:
+
+```bash
+curl -k https://localhost:8443/health
+```
+
+3. Redirect OAuth correcto:
+
+```bash
+curl -k -I https://localhost:8443/api/users/auth/google | sed -n '1,20p'
+```
+
+El `redirect_uri` debe apuntar al origen HTTPS publicado por `reverse-proxy-web`.
+
+#### 4.2.9. Troubleshooting
+
+**El navegador dice Not Secure**
+
+- El certificado es self-signed. Importalo como confiable o usa uno emitido por CA.
+
+**No abre https://localhost:8443**
+
+- Verifica que existan `tls.crt` y `tls.key` en `reverse-proxy-web/certs`.
+- Revisa logs: `docker compose logs --tail=200 reverse-proxy-web`.
+
+**OAuth redirect_uri_mismatch**
+
+- Confirma que la configuracion OAuth use el origen HTTPS publicado por `reverse-proxy-web`.
+
+#### 4.2.10. Laboratorio de interceptacion con mitmproxy para el canal seguro web
+
+##### 4.2.10.1. Descripcion
+
+Este laboratorio evalua la efectividad del canal seguro implementado por `reverse-proxy-web` en `prototype-3`, comparandolo contra `prototype-2`, donde el frontend web y el API Gateway se exponen por HTTP.
+
+El componente `reverse-proxy-web` actua como punto de entrada publico para el frontend SSR. Termina TLS, redirige HTTP a HTTPS y reenvia internamente hacia `web-page`. El flujo esperado en `prototype-3` es:
+
+```text
+Navegador -> reverse-proxy-web (HTTPS) -> web-page (Next.js SSR) -> api-gateway (privado)
+```
+
+El navegador solo debe conocer el reverse proxy. Los componentes `web-page` y `api-gateway` no deben aparecer como destinos publicos del browser.
+
+##### 4.2.10.2. Objetivo
+
+Validar que el patron de canal seguro entre el navegador y `reverse-proxy-web` mejora la proteccion frente a interceptacion de trafico, comparando:
+
+1. Confidencialidad: si credenciales, tokens, payloads o terminos de busqueda pueden leerse desde una captura.
+2. Integridad/autenticidad: si el navegador acepta o bloquea un intermediario no confiable.
+3. Exposicion de topologia: si el navegador observa directamente componentes internos como `web-page` o `api-gateway`.
+
+##### 4.2.10.3. Supuestos
+
+- Ambos prototipos ya compilan y corren correctamente en la maquina de pruebas.
+- Las variables de entorno, credenciales de desarrollo, certificados y dependencias externas ya estan configuradas.
+- El certificado de desarrollo de `prototype-3` puede ser self-signed; esto es aceptable para el laboratorio.
+- Se ejecuta un solo prototipo a la vez para evitar conflictos de puertos.
+- Se usa un navegador o perfil dedicado para no contaminar la navegacion diaria con CAs de prueba.
+
+##### 4.2.10.4. Herramientas
+
+- Docker y Docker Compose.
+- Navegador web, recomendado Firefox por su control explicito de proxy y certificados.
+- `mitmproxy` o `mitmdump`.
+
+Si `mitmproxy` no esta instalado localmente, puede usarse con Docker:
+
+```bash
+docker run --rm -it --network host \
+  -v "$HOME/.mitmproxy-raccon-lab:/home/mitmproxy/.mitmproxy" \
+  mitmproxy/mitmproxy \
+  mitmproxy --listen-host 127.0.0.1 --listen-port 8088 --set ssl_insecure=true
+```
+
+Notas:
+
+- `--network host` permite mantener URLs locales como `localhost` durante el laboratorio.
+- `ssl_insecure=true` permite que mitmproxy acepte certificados self-signed del entorno de desarrollo.
+- El volumen mantiene estable la CA de mitmproxy entre ejecuciones.
+
+##### 4.2.10.5. Preparacion del navegador
+
+Configurar proxy manual:
+
+```text
+HTTP proxy: 127.0.0.1
+Puerto: 8088
+
+HTTPS proxy: 127.0.0.1
+Puerto: 8088
+```
+
+En Firefox:
+
+- Dejar vacio el campo `No proxy for`.
+- Si se prueba contra `localhost`, habilitar `network.proxy.allow_hijacking_localhost=true` en `about:config`.
+- Para la prueba con CA instalada, abrir `http://mitm.it`, descargar la CA de mitmproxy e importarla en `Authorities`, marcando confianza para identificar sitios web.
+
+##### 4.2.10.6. Procedimiento A: prototype-2 sin canal seguro
+
+1. Levantar `prototype-2`.
+
+```bash
+docker compose up --build
+```
+
+2. Abrir el frontend web por HTTP.
+
+```text
+http://localhost:3000
+```
+
+3. Ejecutar acciones funcionales:
+
+- Registro de usuario de prueba.
+- Login.
+- Navegacion dentro de la aplicacion.
+- Busqueda o accion que invoque servicios de analisis, aunque alguno responda error por dependencias externas.
+
+4. Observar en mitmproxy las solicitudes del navegador.
+
+Flujos esperados:
+
+```text
+http://localhost:3000/...
+http://localhost:8080/api/users/auth/login
+http://localhost:8080/api/users/auth/register
+http://localhost:8080/api/youtube/...
+http://localhost:8080/api/trends/...
+```
+
+5. Evidencia esperada:
+
+- Rutas HTTP visibles.
+- Headers visibles.
+- Bodies JSON visibles.
+- Credenciales de login o registro visibles cuando se inspecciona la solicitud correspondiente.
+- Tokens o header `Authorization: Bearer ...` visibles despues de autenticar, si la aplicacion los envia.
+- Terminos de busqueda visibles en query params o payloads.
+
+Resultado esperado:
+
+```text
+En prototype-2, mitmproxy puede inspeccionar el trafico de aplicacion sin instalar una CA ni romper TLS, porque el canal navegador -> sistema usa HTTP. Las rutas, headers y cuerpos de solicitud quedan disponibles para un intermediario con capacidad de proxy.
+```
+
+##### 4.2.10.7. Procedimiento B: prototype-3 con canal seguro y reverse-proxy-web
+
+1. Levantar `prototype-3`.
+
+```bash
+docker compose up --build
+```
+
+2. Verificar el reverse proxy web.
+
+```bash
+curl -k https://localhost:8443/health
+curl -I http://localhost:8080/health
+```
+
+Resultados esperados:
+
+- HTTPS responde `ok` en `/health`.
+- HTTP redirige a HTTPS.
+
+3. Abrir el frontend web por HTTPS.
+
+```text
+https://localhost:8443
+```
+
+4. Prueba sin CA de mitmproxy instalada.
+
+Mantener el navegador apuntando a mitmproxy, pero sin confiar en su CA. Intentar entrar a la aplicacion y ejecutar una accion.
+
+Resultado esperado:
+
+```text
+El navegador bloquea la conexion o muestra advertencia de certificado. Un intermediario no autorizado no puede interceptar de forma transparente el canal HTTPS browser -> reverse-proxy-web.
+```
+
+5. Prueba con CA de mitmproxy instalada.
+
+Instalar la CA desde `http://mitm.it` solo en el navegador/perfil de laboratorio. Repetir:
+
+- Registro o login.
+- Navegacion.
+- Busqueda o invocacion funcional hacia servicios internos.
+
+Resultado esperado:
+
+```text
+mitmproxy puede descifrar el trafico porque el navegador confia explicitamente en su CA. Esta es una inspeccion autorizada. Aun asi, el host observado por el navegador debe ser el reverse proxy HTTPS y no los componentes internos.
+```
+
+6. Observaciones esperadas con CA instalada:
+
+- Solicitudes hacia `https://localhost:8443/...`.
+- Rutas `/api/*` same-origin contra el reverse proxy.
+- Ausencia de solicitudes del navegador hacia `web-page:3000`, `api-gateway:8080` o nombres internos de Docker.
+- Redireccion HTTP -> HTTPS en el puerto publico de redireccion.
+- Trafico interno `web-page -> api-gateway` no visible desde el proxy del navegador.
+
+##### 4.2.10.8. Resultados obtenidos
+
+###### Prototype-2: trafico HTTP legible
+
+En `prototype-2` se observo que el navegador accede directamente al frontend por HTTP y que las llamadas de aplicacion hacia el API Gateway tambien viajan por HTTP. En mitmproxy se visualizaron rutas como `http://localhost:3000/...` y `http://localhost:8080/api/...`, lo cual evidencia que el intermediario puede reconocer la topologia publica usada por el browser.
+
+![Rutas visibles en prototype-2](images/Prototype2-RutasVisibles.jpeg)
+
+Al inspeccionar una solicitud funcional del aplicativo, mitmproxy mostro headers, token `Authorization: Bearer ...` y body JSON con el termino de busqueda enviado por el usuario. Esto confirma que, sin canal TLS entre el browser y el punto de entrada, un intermediario con capacidad de proxy puede leer contenido de aplicacion.
+
+![Paquetes y payload visibles en prototype-2](images/Prototype2-PaquetesCompletamenteAccesibles.jpeg)
+
+###### Prototype-3: bloqueo antes de confiar en la CA
+
+En `prototype-3`, con el navegador apuntando a mitmproxy pero sin instalar la CA de mitmproxy como autoridad confiable, el acceso a `https://localhost:8443` no pudo completarse de forma transparente. El navegador bloqueo la navegacion o mostro error de conexion/certificado, y mitmproxy no pudo entregar una inspeccion silenciosa del canal.
+
+![Bloqueo previo a instalar CA en prototype-3](images/Prototype-3_PrevioCA_BrowserBloqueado_NoRespuestaEnmitm.jpeg)
+
+Este resultado evidencia que el canal HTTPS entre browser y `reverse-proxy-web` obliga al cliente a validar la identidad criptografica del extremo. Un intermediario no autorizado no puede reemplazar el certificado sin que el navegador lo detecte.
+
+###### Prototype-3: inspeccion autorizada con CA instalada
+
+Despues de instalar la CA de mitmproxy en el navegador de laboratorio, la inspeccion si fue posible. Este escenario no representa un ataque transparente, sino una autorizacion explicita del cliente para que mitmproxy actue como autoridad de confianza durante la prueba.
+
+![Instalacion y confianza en la CA de mitmproxy](images/Prototype3-CertificadoCA-ViabilidadDeLEctura.jpeg)
+
+Con la CA instalada, mitmproxy mostro solicitudes HTTPS hacia `https://localhost:8443/...`. Las rutas de aplicacion quedaron bajo el mismo origen del reverse proxy, por ejemplo `/api/users/auth/refresh`, sin exponer al browser destinos internos como `web-page:3000` o `api-gateway:8080`.
+
+![Enrutamiento correcto a traves del reverse proxy](images/Prototype3-AutorizacionCA-EnrutamientoCorrecto.jpeg)
+
+Tambien se verifico una solicitud funcional hacia `/api/nlp`. Aunque mitmproxy pudo leer headers y payload por la CA instalada, el host observado fue `localhost:8443`, el origen fue `https://localhost:8443` y el `Sec-Fetch-Site` aparecio como `same-origin`. Esto confirma que el browser no esta consumiendo directamente el API Gateway ni los servicios internos.
+
+![Flujo visible en mitmproxy con CA autorizada](images/Prototype3-AutorizadoCA-FlujoEvidenteEnMitm.jpeg)
+
+##### 4.2.10.9. Analisis de resultados
+
+La prueba evidencia la aplicacion del patron porque `prototype-3` cambia el punto de contacto del browser: en lugar de exponer directamente el frontend y el API Gateway por HTTP, concentra el acceso publico en `reverse-proxy-web` por HTTPS. Esto se observa en las capturas donde las solicitudes del browser usan `https://localhost:8443` y las rutas `/api/*` se mantienen bajo el mismo origen del reverse proxy.
+
+La utilidad del patron se evidencio en tres aspectos:
+
+- Confidencialidad del canal: antes de confiar en la CA de mitmproxy, el navegador no permitio una interceptacion transparente del trafico HTTPS.
+- Control de exposicion: durante la inspeccion autorizada, el browser solo observo el reverse proxy como destino, no la topologia interna compuesta por `web-page`, `api-gateway` y servicios de negocio.
+- Comparacion directa con el baseline: en `prototype-2`, mitmproxy pudo leer rutas, headers, token de autorizacion y payload JSON sobre HTTP; en `prototype-3`, esa lectura solo fue posible despues de instalar voluntariamente la CA interceptora.
+
+Por lo tanto, el patron de canal seguro implementado por `reverse-proxy-web` cumple su proposito: protege el tramo navegador -> entrada web contra MITM no autorizado, fuerza un punto unico de acceso HTTPS y reduce la exposicion de componentes internos desde la perspectiva del cliente web.
 
 ---
 
