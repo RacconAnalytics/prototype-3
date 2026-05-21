@@ -88,7 +88,7 @@ Para el desarrolllo del sistema se usaron los siguientes lenguajes de programaci
 
 #### 3.1.2. Architectural Styles
 
-La aplicación emplea un estilo arquitectónico de Microservicios, caracterizado por su naturaleza distribuida y el alto grado de autonomía de sus componentes. La comunicación externa se gestiona mediante el patrón API Gateway, que actúa como un punto de entrada único para los componentes de presentación (frontend Web y Desktop), desacoplando la capa de presentación de la lógica interna del sistema.
+La aplicación emplea un estilo arquitectónico de Microservicios, caracterizado por su naturaleza distribuida y el alto grado de autonomía de sus componentes. La comunicación externa se gestiona a través de dos proxies inversos que constituyen los únicos puntos de entrada públicos al sistema: uno orientado a clientes web, con terminación TLS (HTTPS en el puerto 8443), y otro para clientes de escritorio (puerto 8081). El tráfico entrante es enrutado hacia el frontend web interno o directamente al API Gateway, que actúa como orquestador interno desacoplando la lógica de negocio distribuida de los consumidores externos.
 
 Este diseño permite la orquestación y el enrutamiento hacia servicios especializados que operan de manera independiente y poseen su propia persistencia de datos:
 
@@ -110,7 +110,7 @@ Nuestro sistema cuenta con:
   - **Frontend web:** Desarrollado en Typescript usando el framework Next JS para implementar Server Side Rendering. Se limita a la interfaz web, cuya responsabilidad es renderizar la información suministrada por los servicios lógicos a través del API Gateway
   - **Frontend de escritorio:** Desarrollado en C#. Permite al usuario interactuar desde la app con interfaz de escritorio mostrando la infmración suministrada por los servicios lógicos a través del API-Gateway
 - **5 Componentes lógicos:**
-  - **Orquestador (API Gateway):** Punto de entrada y enrutamiento. Actúa como mediador, manejando las peticiones hacia el servicio de adquisición de YouTube y el de gestión de usuarios. Provee una interfaz unificada para el frontend, ocultando la complejidad de la arquitectura distribuida. Desarrollado en el lenguaje de propósito general Go.
+  - **Orquestador (API Gateway):** Componente interno de orquestación y enrutamiento. Recibe las solicitudes provenientes de los proxies inversos, valida la autenticación mediante tokens JWT y enruta las peticiones al microservicio correspondiente. Provee una interfaz unificada para el frontend, ocultando la complejidad de la arquitectura distribuida. No está expuesto públicamente. Desarrollado en el lenguaje de propósito general Go.
   - **Users Management Service**: Gestiona el ciclo de vida de los usuarios (registro e inicio de sesión), exponiendo recursos de autenticación. Desarrollado en TypeScript.
   - **Youtube Data Acquisition Service**: Orquesta la extracción de datos externos. Procesa la query del usuario, consulta la API de YouTube, cálcula métricas y estandarizada los datos para ser presentados en el front. Desarrollado en el lenguaje Python.
   - **Google Trends Data Acquisition Service**: Maneja la extracción de datos de tendecias de búsquedas, consultando la API externa de Google Trends, enriqueciendo la información retornada por el componente de Youtube. Desarrollado en lenguaje de propósito general Python.
@@ -130,7 +130,7 @@ Nuestro sistema cuenta con:
 
 #### 3.1.4. Architectural Pattern
 
-Se implementó un patrón arquitécnico con un componente orquestador que hace referencia al API-gateway, evitando que los componentes de presentación adquieran una responsabilidad de sincronización de lógica de negocio que no es responsabilidad natural en la capa de presentación. Este componente es el punto único de entrada el sistema de análisis de tendencias. Recibe las solicitudes del cliente, enruta las peticiones al microservicio correspondiente, gestionando autenticación, validación y contro de acceso. De esta manera, se desacopla al cliente de la arquitectura interna basada en microservicios y simplifica la comunicación.
+Se implementó un patrón arquitectónico con un componente orquestador (API Gateway), evitando que los componentes de presentación adquieran una responsabilidad de sincronización de lógica de negocio que no es responsabilidad natural en la capa de presentación. Las solicitudes externas llegan primero a los proxies inversos, que terminan el canal seguro (TLS/HTTPS) y reenvían el tráfico hacia la red interna. El API Gateway, como orquestador interno, valida la autenticación mediante tokens JWT (*Bearer tokens*), enruta las peticiones al microservicio correspondiente y gestiona el control de acceso. De esta manera, se desacopla al cliente de la arquitectura interna basada en microservicios y ningún servicio interno queda expuesto directamente al exterior.
 
 ---
 
@@ -160,12 +160,17 @@ El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el 
 ##### 3.2.1.2. Desktop Frontend
 
 - **Stack:** WPF, C# (.NET), XAML
+- **Puerto de acceso público:** 8081 (vía reverse-proxy)
 - **Responsabilidades:**
   1. UI de escritorio para autenticación (SignIn, CreateAccount)
   2. Dashboard desktop con HomePage
-  3. Comunicación con el API Gateway vía HTTP REST
+  3. Comunicación con el API Gateway a través del reverse-proxy en el puerto 8081
 - **Endpoints que consume:** Mismos que Web Frontend
-- **Dependencias:** api-gateway (HTTP REST)
+- **Dependencias:** reverse-proxy (8081) → api-gateway (HTTP REST)
+
+**Flujo de acceso (Desktop):**
+
+Cliente Desktop -> reverse-proxy (8081) -> api-gateway (privado)
 
 ---
 
@@ -174,7 +179,7 @@ El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el 
 ##### 3.2.2.1. API Gateway
 
 - **Stack:** Go, net/http, golang-jwt, godotenv
-- **Puerto:** 8080
+- **Puerto:** 8080 (interno, no expuesto al host)
 - **Responsabilidades:**
   1. JWT Authentication — valida Bearer tokens en rutas protegidas; inyecta X-User-Id y X-User-Email en headers downstream
   2. Reverse Proxy — reescribe rutas públicas (`/api/users/*` → users-service, `/api/youtube/*` → youtube-service)
@@ -189,7 +194,7 @@ El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el 
 ##### 3.2.3.1. YouTube Acquisition Service
 
 - **Stack:** Python 3, FastAPI, Motor (MongoDB async), aio-pika (RabbitMQ), redis-py, google-api-python-client
-- **Puerto:** 8000
+- **Puerto:** 8000 (interno, no expuesto al host)
 - **Responsabilidades:**
   1. Scraping de YouTube Data API v3 — búsqueda y recolección de datos de videos/canales
   2. Gestión de cuota de API — tracking y rate limiting del YouTube API quota
@@ -201,7 +206,7 @@ El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el 
 ##### 3.2.3.2. Google Trends Acquisition Service
 
 - **Stack:** Python 3, FastAPI, Motor (MongoDB async), pytrends
-- **Puerto:** 8001
+- **Puerto:** 8001 (interno, no expuesto al host)
 - **Responsabilidades:**
   1. Retrieval de datos de Google Trends — volumen de búsqueda histórica, queries relacionadas
   2. Cache en MongoDB con TTL 24h — minimiza llamadas a la API de Google Trends
@@ -213,7 +218,7 @@ El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el 
 ##### 3.2.3.3. NLP Service
 
 - **Stack:** Java 17, Spring Boot 3.2, Jackson
-- **Puerto:** 8193
+- **Puerto:** 8193 (interno, no expuesto al host)
 - **Responsabilidades:**
   1. Expansión de Keywords — genera keywords adicionales a partir de una query original
   2. Enrichment de queries — genera expanded_queries para mejorar búsquedas
@@ -224,7 +229,7 @@ El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el 
 ##### 3.2.3.4. Users Management Service
 
 - **Stack:** NestJS 11, Prisma ORM, PostgreSQL, Redis (ioredis), Passport (Google OAuth2, GitHub OAuth2, JWT), bcrypt, nodemailer
-- **Puerto:** 3001
+- **Puerto:** 3001 (interno, no expuesto al host)
 - **Responsabilidades:**
   1. Autenticación — Local (email/password con bcrypt), OAuth2 (Google, GitHub), JWT (access + refresh tokens)
   2. CRUD de Users — registro, actualización de perfil/settings, recovery de contraseña via email
@@ -240,28 +245,28 @@ El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el 
 ##### 3.2.4.1. PostgreSQL
 
 - **Imagen:** postgres:15
-- **Puerto:** 5432
+- **Puerto:** 5432 (no publicado al host, solo accesible en red interna)
 - **Responsabilidades:** Almacenamiento relacional de usuarios, configuraciones y sesiones
 - **Usado por:** users-service (vía Prisma ORM)
 
 ##### 3.2.4.2. MongoDB
 
 - **Imagen:** mongo:6
-- **Puerto:** 27017
+- **Puerto:** 27017 (no publicado al host, solo accesible en red interna)
 - **Responsabilidades:** Almacenamiento documental de cache de análisis YouTube y tendencias Google
 - **Usado por:** youtube-acquisition-service, google-trends-acquisition-service (vía Motor async)
 
 ##### 3.2.4.3. Redis
 
 - **Imagen:** redis:7
-- **Puerto:** 6379
+- **Puerto:** 6379 (no publicado al host, solo accesible en red interna)
 - **Responsabilidades:** Cache de queries (YouTube: TTL 5min), rate limiting de auth (Users), session cache
 - **Usado por:** youtube-acquisition-service, users-service (vía ioredis)
 
 ##### 3.2.4.4. RabbitMQ
 
 - **Imagen:** rabbitmq:3-management
-- **Puertos:** 5672 (AMQP), 15672 (Management UI)
+- **Puertos:** 5672 (AMQP), 15672 (Management UI) — ninguno publicado al host, solo accesibles en red interna
 - **Responsabilidades:** Mensajería asíncrona para orquestación de análisis (producer/consumer pattern)
 - **Colas:** `analyses_queue`, `results_queue`
 - **Usado por:** youtube-acquisition-service (vía aio-pika)
@@ -477,28 +482,32 @@ La aplicación fue dividida en dos modulos principales y 3 sub-modulos, con un t
 El diagrama de despliegue ilustra la distribución física y lógica de los componentes del sistema, dividiendo la arquitectura en dos zonas de red principales: una red de área local (LAN) y una red externa (Internet). El sistema se distribuye a través de dos nodos físicos o virtuales que alojan múltiples entornos de ejecución y microservicios.
 
 1. Zona LAN: Node 1 (Device Localhost)
-   Este nodo actúa como el entorno principal de alojamiento local y contiene la mayoría de los microservicios, interfaces y bases de datos operativas. La configuración de despliegue en este nodo es la siguiente:
-   Interfaces de Usuario y Gateway:
-   •Website Frontend: Se encuentra desplegado en un entorno de ejecución Node.js y se expone a través del puerto 3000.
-   •Desktop Frontend: Está desplegado bajo el marco de trabajo .NET (no se especifica un puerto de red aplicable).
-   •API Gateway: Actúa como punto de entrada y está desplegado en un entorno Go, operando en el puerto 8080.
+   Este nodo actúa como el entorno principal de alojamiento local y contiene todos los microservicios, interfaces y bases de datos del sistema. El acceso externo al nodo está restringido a dos únicos puntos de entrada públicos (proxies inversos); todos los demás servicios operan en redes privadas internas sin exposición directa al host ni a internet.
 
-Microservicios de Procesamiento y Adquisición:
+   **Puntos de entrada públicos:**
+   - **Reverse Proxy Web** (nginx): Termina el canal TLS (HTTPS) en el puerto 8443, redirige HTTP (puerto 8080) a HTTPS, y enruta el tráfico hacia el frontend web interno. Aplica rate limiting y cabeceras de seguridad (HSTS, X-Frame-Options).
+   - **Reverse Proxy Desktop** (nginx): Recibe conexiones de clientes de escritorio en el puerto 8081 y las enruta al API Gateway interno. Aplica rate limiting.
 
-•YouTube Data Acquisition Microservice: Desplegado mediante ejecución de Python en el puerto 8000.
-•Natural Language Processing Microservice: Se ejecuta sobre una máquina virtual de Java (JVM) utilizando el puerto 8193.
-•Google Trends Data Acquisition Microservice: Desplegado mediante ejecución de Python en el puerto 8001.
-•Users Management Microservice: Se encuentra alojado en un entorno Node.js, configurado en el puerto 3001.
+   **Interfaces de usuario y orquestación (red privada de servicios):**
+   - **Website Frontend**: Desplegado en Node.js (puerto 3000, privado). No expuesto directamente; accesible únicamente a través del Reverse Proxy Web vía HTTPS.
+   - **Desktop Frontend**: Desplegado bajo el marco de trabajo .NET. Se comunica con el sistema a través del Reverse Proxy Desktop (puerto 8081).
+   - **API Gateway**: Desplegado en Go (puerto 8080, privado). Orquesta y enruta las solicitudes internas; valida tokens JWT antes de reenviar peticiones a los microservicios.
 
-Almacenamiento en Caché y Bases de Datos Locales:
-•Cache YouTube Historical Search Keywords: Utiliza Redis como entorno de ejecución y opera en el puerto 6379.
-•Google Trends Historical Search Keywords: Base de datos alojada en un motor MongoDB sobre el puerto 27017.
-•Users: Base de datos relacional administrada mediante PostgreSQL, exponiendo el puerto 5432.
+   **Microservicios de procesamiento y adquisición (red privada de servicios):**
+   - **YouTube Data Acquisition Microservice**: Desplegado en Python (puerto 8000, privado).
+   - **Natural Language Processing Microservice**: Ejecutado sobre JVM (puerto 8193, privado).
+   - **Google Trends Data Acquisition Microservice**: Desplegado en Python (puerto 8001, privado).
+   - **Users Management Microservice**: Alojado en Node.js (puerto 3001, privado).
+
+   **Almacenamiento en caché y bases de datos locales (red interna aislada, sin acceso externo):**
+   - **Cache YouTube Historical Search Keywords**: Redis (puerto 6379, no publicado al host).
+   - **Google Trends Historical Search Keywords**: MongoDB (puerto 27017, no publicado al host).
+   - **Users**: PostgreSQL (puerto 5432, no publicado al host).
 
 2. Zona Internet: Node 2 (Server)
    Este nodo representa un servidor remoto accesible a través de Internet, dedicado específicamente al almacenamiento persistente externo.
    Almacenamiento Remoto:
-   •YouTube Historical Search Keywords: Base de datos desplegada en un motor MongoDB, operando en el puerto estándar 27017.
+   - **YouTube Historical Search Keywords**: Base de datos desplegada en MongoDB (puerto 27017).
 
 ---
 
@@ -672,26 +681,29 @@ La directiva `internal: true` en `raccon_private_internal` es el mecanismo centr
 **Flujo de acceso con segmentación aplicada:**
 
 ```
-INTERNET / HOST
-     |
-     +--(HTTPS 8443 / HTTP 8080)--> reverse-proxy-web  [public_web + private_services]
-     |                                      |
-     |                                 web-page         [private_services]
-     |                                      |
-     +---------(8081)-----------> reverse-proxy         [public_desktop + private_services]
-                                            |
-                                       api-gateway      [private_services + private_internal]
-                                            |
-                         +-----------------+------------------+
-                         |                 |                  |
-                   users-service     youtube-service  google-trends-service
-                   [priv_svc +       [priv_svc +      [priv_svc +
-                    priv_int]         priv_int]         priv_int]
-                         |                 |                  |
-                  [postgres, redis]  [mongo, redis,    [mongo]
-                                     rabbitmq]
-                                          ↑
-                    raccon_private_internal (internal=true — sin acceso desde fuera)
+Browser (web)                         Cliente desktop
+      |                                      |
+  (HTTPS 8443)                           (HTTP 8081)
+      |                                      |
+reverse-proxy-web                      reverse-proxy
+[public_web + private_services]        [public_desktop + private_services]
+      |                                      |
+  web-page                                   |
+  [private_services]                         |
+      |                                      |
+      +-------------> api-gateway <----------+
+                   [private_services + private_internal]
+                              |
+          +----------+--------+---------+----------+
+          |          |                  |          |
+    users-service  youtube-service  trends-service  nlp-service
+    [priv_svc +    [priv_svc +      [priv_svc +    [priv_svc]
+     priv_int]      priv_int]        priv_int]
+          |               |               |
+    [postgres,      [mongo, redis,     [mongo]
+     redis]          rabbitmq]
+                          ↑
+        raccon_private_internal (internal=true — sin acceso desde fuera)
 ```
 
 La red `raccon_private_services` permite que los microservicios realicen llamadas salientes a APIs externas (YouTube Data API, Google Trends API, Nvidia NIM API). La red `raccon_private_internal` está completamente aislada del exterior y contiene únicamente las bases de datos y los servicios que necesitan accederlas directamente.
