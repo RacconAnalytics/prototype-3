@@ -1,6 +1,42 @@
-# Artifact - Prototipo 2 - RacconAnalytics
+# Artifact - Prototipo 3 - RacconAnalytics
 
-## Grupo 2F
+## Tabla de Contenidos
+
+- [1. Grupo 2F](#1-grupo-2f)
+- [2. Software System](#2-software-system)
+  - [2.1. Name](#21-name)
+  - [2.2. Logo](#22-logo)
+  - [2.3. Description](#23-description)
+  - [2.4. Lenguajes de propósito general](#24-lenguajes-de-propósito-general)
+- [3. Architectural Structures](#3-architectural-structures)
+  - [3.1. C&C Structure](#31-component-and-connector-cc-structure)
+    - [3.1.1. C&C View](#311-cc-view)
+    - [3.1.2. Architectural Styles](#312-architectural-styles)
+    - [3.1.3. Architectural Elements and Relations](#313-architectural-elements-and-relations)
+    - [3.1.4. Architectural Pattern](#314-architectural-pattern)
+  - [3.2. Layered Structure](#32-layered-structure)
+    - [3.2.1. Tier 1 — Presentation](#321-tier-1--presentation)
+    - [3.2.2. Tier 2 — Distribution](#322-tier-2--distribution)
+    - [3.2.3. Tier 3 — Business Logic](#323-tier-3--business-logic)
+    - [3.2.4. Tier 4 — Data](#324-tier-4--data)
+    - [3.2.5. External APIs](#325-external-apis)
+    - [3.2.6. Relations Summary](#326-relations-summary)
+    - [3.2.7. Logic Layers](#327-logic-layers)
+  - [3.3. Decomposition View](#33-decomposition-view)
+  - [3.4. Deployment View](#34-deployment-view)
+- [4. Atributos de Calidad — Seguridad](#4-atributos-de-calidad--seguridad)
+  - [4.1. Patrón Network Segmentation](#41-patrón-network-segmentation-limitar-acceso--resistir-ataque)
+    - [4.1.1. Táctica arquitectónica aplicada](#411-táctica-arquitectónica-aplicada)
+    - [4.1.2. Patrón arquitectónico aplicado](#412-patrón-arquitectónico-aplicado)
+    - [4.1.3. Escenarios de seguridad](#413-escenarios-de-seguridad)
+    - [4.1.4. Implementación](#414-implementación)
+    - [4.1.5. Pruebas](#415-pruebas)
+- [5. Prototype](#5-prototype)
+  - [5.1. Instructions](#51-instructions)
+
+---
+
+## 1. Grupo 2F
 
 - Juan David Buitrago Salazar
 - Juan David Serrano Ruiz
@@ -12,17 +48,17 @@
 - David Felipe Chaparro Pérez
 - Andrés Felipe León Sánchez
 
-## Software system
+## 2. Software System
 
-### Name
+### 2.1. Name
 
 Raccon Analytics
 
-### Logo
+### 2.2. Logo
 
 ![](./images/logo.jfif)
 
-### Description
+### 2.3. Description
 
 El proyecto consiste en el desarrollo de una aplicación web orientada al análisis de tendencias de contenido en plataformas digitales. El sistema permitirá a los usuarios realizar búsquedas sobre temas específicos y visualizar indicadores que reflejen el nivel de actividad, popularidad y relevancia del tema dentro de distintas plataformas sociales. En el primer prototipo del sistema, el análisis se enfocó principalmente en contenido proveniente de YouTube. Para este segundo prototipo, el sistema integra dos nuevos componentes lógicos: un componente de consulta de Google Trends y un componente de Procesamiento de lenguaje natural, para expandir semánticamente la búsqueda del usuario y mostrar tendencias de búsqueda, complementando así el análisis proveniente de Youtube.
 
@@ -32,7 +68,7 @@ El propósito de la plataforma no es únicamente mostrar resultados de búsqueda
 
 El alcance de este segundo prototipo del sistema está limitado a la recopilación y análisis de métricas básicas disponibles a través de las APIs públicas de las plataformas seleccionadas: Youtube y Google trends, complementando la búsqueda del usuario con su expandimiento en búsuqedas relacionadas por el Procesamiento de lenguaje natural. Debido a las restricciones propias de estas APIs, tales como límites diarios de consultas o disponibilidad limitada de ciertos tipos de información, el sistema priorizará la obtención de datos esenciales que permitan generar indicadores representativos del comportamiento del contenido.
 
-### **Lenguajes de propósito general:**
+### 2.4. Lenguajes de propósito general
 
 Para el desarrolllo del sistema se usaron los siguientes lenguajes de programación de propósito general:
 
@@ -42,15 +78,15 @@ Para el desarrolllo del sistema se usaron los siguientes lenguajes de programaci
 - Go
 - C#
 
-## **Architectural Structures**
+## 3. Architectural Structures
 
-### **Component-and Connector (C&C) Structure**
+### 3.1. Component-and Connector (C&C) Structure
 
-#### C&C View:
+#### 3.1.1. C&C View
 
 ![](./images/Vista-C&C.png)
 
-#### **Architectural styles**
+#### 3.1.2. Architectural Styles
 
 La aplicación emplea un estilo arquitectónico de Microservicios, caracterizado por su naturaleza distribuida y el alto grado de autonomía de sus componentes. La comunicación externa se gestiona mediante el patrón API Gateway, que actúa como un punto de entrada único para los componentes de presentación (frontend Web y Desktop), desacoplando la capa de presentación de la lógica interna del sistema.
 
@@ -66,7 +102,7 @@ Este diseño permite la orquestación y el enrutamiento hacia servicios especial
 
 Los componentes son reutilizables, escalables independientemente y se comunican principalmente a través de protocolos ligeros (HTTP: REST y Streaming), lo que refuerza la agilidad y el bajo acoplamiento del sistema.
 
-#### **Architectural elements and relations**
+#### 3.1.3. Architectural Elements and Relations
 
 Nuestro sistema cuenta con:
 
@@ -92,19 +128,19 @@ Nuestro sistema cuenta con:
   - External Google Trends API
   - Nvidia NIM API
 
-#### **Architectural pattern**
+#### 3.1.4. Architectural Pattern
 
 Se implementó un patrón arquitécnico con un componente orquestador que hace referencia al API-gateway, evitando que los componentes de presentación adquieran una responsabilidad de sincronización de lógica de negocio que no es responsabilidad natural en la capa de presentación. Este componente es el punto único de entrada el sistema de análisis de tendencias. Recibe las solicitudes del cliente, enruta las peticiones al microservicio correspondiente, gestionando autenticación, validación y contro de acceso. De esta manera, se desacopla al cliente de la arquitectura interna basada en microservicios y simplifica la comunicación.
 
 ---
 
-## **Layered Structure**
+### 3.2. Layered Structure
 
 ![](./images/Layered-view.png)
 
-## Tier 1 — Presentation
+#### 3.2.1. Tier 1 — Presentation
 
-### Web Frontend
+##### 3.2.1.1. Web Frontend
 
 - **Stack:** Next.js 14, React 18, TailwindCSS 4, DaisyUI 5, Recharts, Framer Motion
 - **Puerto:** 3000 (privado, interno). Acceso publico via reverse-proxy-web en 8443.
@@ -121,7 +157,7 @@ Navegador -> reverse-proxy-web (HTTPS 8443) -> web-page (SSR, privado) -> api-ga
 
 El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el servidor de Next.js y se reenvian por red interna al API Gateway.
 
-### Desktop Frontend
+##### 3.2.1.2. Desktop Frontend
 
 - **Stack:** WPF, C# (.NET), XAML
 - **Responsabilidades:**
@@ -133,9 +169,9 @@ El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el 
 
 ---
 
-## Tier 2 — Distribution
+#### 3.2.2. Tier 2 — Distribution
 
-### API Gateway
+##### 3.2.2.1. API Gateway
 
 - **Stack:** Go, net/http, golang-jwt, godotenv
 - **Puerto:** 8080
@@ -148,11 +184,9 @@ El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el 
 
 ---
 
-## Tier 3 — Business Logic
+#### 3.2.3. Tier 3 — Business Logic
 
-### Layer: Data Acquisition & Processing
-
-#### YouTube Acquisition Service
+##### 3.2.3.1. YouTube Acquisition Service
 
 - **Stack:** Python 3, FastAPI, Motor (MongoDB async), aio-pika (RabbitMQ), redis-py, google-api-python-client
 - **Puerto:** 8000
@@ -164,7 +198,7 @@ El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el 
 - **DBs:** MongoDB (cache de análisis), Redis (cache de queries con TTL 5min), RabbitMQ (mensajería asíncrona)
 - **Dependencias:** MongoDB, Redis, RabbitMQ, nlp-service (allowed-to-use-below), YouTube Data API (externa), users-service (validación)
 
-#### Google Trends Acquisition Service
+##### 3.2.3.2. Google Trends Acquisition Service
 
 - **Stack:** Python 3, FastAPI, Motor (MongoDB async), pytrends
 - **Puerto:** 8001
@@ -176,7 +210,7 @@ El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el 
 - **DBs:** MongoDB (cache de tendencias)
 - **Dependencias:** MongoDB, nlp-service (allowed-to-use-below), Google Trends API (externa), users-service (validación)
 
-#### NLP Service
+##### 3.2.3.3. NLP Service
 
 - **Stack:** Java 17, Spring Boot 3.2, Jackson
 - **Puerto:** 8193
@@ -187,9 +221,7 @@ El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el 
 - **Endpoints:** `POST /inference`, `GET /inference/health`
 - **Dependencias:** Nvidia NIM API (externa, HTTP REST)
 
-### Layer: User Management
-
-#### Users Management Service
+##### 3.2.3.4. Users Management Service
 
 - **Stack:** NestJS 11, Prisma ORM, PostgreSQL, Redis (ioredis), Passport (Google OAuth2, GitHub OAuth2, JWT), bcrypt, nodemailer
 - **Puerto:** 3001
@@ -203,30 +235,30 @@ El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el 
 
 ---
 
-## Tier 4 — Data
+#### 3.2.4. Tier 4 — Data
 
-### PostgreSQL
+##### 3.2.4.1. PostgreSQL
 
 - **Imagen:** postgres:15
 - **Puerto:** 5432
 - **Responsabilidades:** Almacenamiento relacional de usuarios, configuraciones y sesiones
 - **Usado por:** users-service (vía Prisma ORM)
 
-### MongoDB
+##### 3.2.4.2. MongoDB
 
 - **Imagen:** mongo:6
 - **Puerto:** 27017
 - **Responsabilidades:** Almacenamiento documental de cache de análisis YouTube y tendencias Google
 - **Usado por:** youtube-acquisition-service, google-trends-acquisition-service (vía Motor async)
 
-### Redis
+##### 3.2.4.3. Redis
 
 - **Imagen:** redis:7
 - **Puerto:** 6379
 - **Responsabilidades:** Cache de queries (YouTube: TTL 5min), rate limiting de auth (Users), session cache
 - **Usado por:** youtube-acquisition-service, users-service (vía ioredis)
 
-### RabbitMQ
+##### 3.2.4.4. RabbitMQ
 
 - **Imagen:** rabbitmq:3-management
 - **Puertos:** 5672 (AMQP), 15672 (Management UI)
@@ -236,27 +268,27 @@ El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el 
 
 ---
 
-## External APIs
+#### 3.2.5. External APIs
 
-### YouTube Data API v3
+##### 3.2.5.1. YouTube Data API v3
 
 - **Protocolo:** HTTP REST
 - **Responsabilidades:** Provee datos de búsqueda, videos y canales de YouTube
 - **Usado por:** youtube-acquisition-service
 
-### Google Trends API (pytrends)
+##### 3.2.5.2. Google Trends API (pytrends)
 
 - **Protocolo:** HTTP (via pytrends library)
 - **Responsabilidades:** Provee datos de volumen de búsqueda histórica y queries relacionadas
 - **Usado por:** google-trends-acquisition-service
 
-### Nvidia NIM API
+##### 3.2.5.3. Nvidia NIM API
 
 - **Protocolo:** HTTP REST
 - **Responsabilidades:** Inferencia LLM para expansión de keywords y enriquecimiento de queries
 - **Usado por:** nlp-service-nvidia
 
-### OAuth Google API
+##### 3.2.5.4. OAuth Google API
 
 - **Protocolo:** OAuth 2.0 / HTTP REST
 - **Responsabilidades:** Autenticación de usuarios via Google SSO
@@ -264,7 +296,7 @@ El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el 
 
 ---
 
-## Relations Summary
+#### 3.2.6. Relations Summary
 
 | Origen                    | Destino                   | Protocolo    | Tipo                 |
 | ------------------------- | ------------------------- | ------------ | -------------------- |
@@ -288,7 +320,7 @@ El navegador solo ve el reverse proxy. Las llamadas `/api/*` se resuelven en el 
 
 ---
 
-### **Logic layers**
+#### 3.2.7. Logic Layers
 
 Para complementar la vista por capas de todo el sistema, se establecieron de igual forma la estructura de capas lógicas o subarquitectura de los componentes lógicos a continuación:
 
@@ -296,7 +328,7 @@ Para complementar la vista por capas de todo el sistema, se establecieron de igu
 
 ---
 
-#### YouTube Acquisition Data Service Sub-architecture
+##### 3.2.7.1. YouTube Acquisition Data Service
 
 ![](./images/youtube.png)
 
@@ -332,7 +364,7 @@ Este componente implementa la lógica de adquisición, procesamiento y almacenam
 
 ---
 
-#### Google Trends Service Sub-architecture
+##### 3.2.7.2. Google Trends Service
 
 ![](./images/Google_Trends.png)
 
@@ -363,7 +395,7 @@ Este servicio obtiene y procesa tendencias desde Google Trends.
 
 ---
 
-#### NLP Service Sub-architecture
+##### 3.2.7.3. NLP Service
 
 ![](./images/NLP_Service.png)
 
@@ -385,7 +417,7 @@ Este servicio se encarga del procesamiento de lenguaje natural para enriquecer l
 
 ---
 
-#### Users Service Sub-architecture
+##### 3.2.7.4. Users Service
 
 ![](./images/users_service.png)
 
@@ -422,7 +454,7 @@ Gestiona autenticación, usuarios y servicios relacionados.
 
 ---
 
-### Decomposition View
+### 3.3. Decomposition View
 
 ![](./images/Vista_Descomposicion.png)
 
@@ -436,11 +468,11 @@ La aplicación fue dividida en dos modulos principales y 3 sub-modulos, con un t
 
 ---
 
-### Deployment View
+### 3.4. Deployment View
 
 ![](./images/Vista_Despliegue.png)
 
-## Arquitectura de Despliegue del Sistema
+#### 3.4.1. Deployment Architecture
 
 El diagrama de despliegue ilustra la distribución física y lógica de los componentes del sistema, dividiendo la arquitectura en dos zonas de red principales: una red de área local (LAN) y una red externa (Internet). El sistema se distribuye a través de dos nodos físicos o virtuales que alojan múltiples entornos de ejecución y microservicios.
 
@@ -470,9 +502,252 @@ Almacenamiento en Caché y Bases de Datos Locales:
 
 ---
 
-## **Prototype**
+## 4. Atributos de Calidad — Seguridad
 
-### Intructions
+### 4.1. Patrón Network Segmentation (Limitar Acceso — Resistir Ataque)
+
+#### 4.1.1. Táctica arquitectónica aplicada
+
+La táctica aplicada es **Limitar acceso** (*Limit Access*), perteneciente a la categoría **Resistir ataque** (*Resist Attack*) del atributo de calidad de Seguridad. Esta táctica restringe los puntos de acceso a los recursos del sistema y el tipo de tráfico permitido, con el objetivo de reducir la superficie de ataque expuesta. Se implementa mediante la creación de zonas de red diferenciadas con distintos niveles de confianza y visibilidad, análogas a una zona desmilitarizada (DMZ) reforzada con cortafuegos.
+
+#### 4.1.2. Patrón arquitectónico aplicado
+
+El patrón aplicado es **Network Segmentation**, que consiste en dividir la red del sistema en segmentos aislados entre sí, limitando la propagación de ataques y el movimiento lateral entre componentes. El patrón distingue dos tipos de subred:
+
+- **Subred pública (*Public Subnet*):** segmentos de red accesibles desde el exterior, que contienen únicamente los componentes de frontera que deben recibir tráfico externo (proxies inversos). En este sistema corresponde a las redes `raccon_public_web` y `raccon_public_desktop`.
+- **Subred privada (*Private Subnet*):** segmentos de red con espacios de direcciones IP privadas, sin acceso desde el exterior. Contienen los microservicios internos, las bases de datos y la mensajería. Corresponde a las redes `raccon_private_services` y `raccon_private_internal`.
+
+Un atacante que comprometa un componente de la subred de presentación (por ejemplo, mediante XSS avanzado en el frontend SSR) no puede alcanzar directamente las bases de datos ni los microservicios internos, ya que la segmentación de red actúa como barrera técnica independiente de la lógica de aplicación.
+
+#### 4.1.3. Escenarios de seguridad
+
+##### 4.1.3.1. Escenario 1 — Aislamiento de bases de datos frente a acceso externo
+
+En el estado previo del sistema (Prototype 2), los contenedores de bases de datos publicaban sus puertos directamente al host mediante la directiva `ports` en `docker-compose.yml`. Esto permitía que cualquier proceso en la máquina anfitriona o en la red local se conectara directamente a MongoDB, PostgreSQL o Redis sin atravesar ninguna capa de seguridad intermedia. Este escenario valida que, tras aplicar el patrón de segmentación de red, las bases de datos quedan completamente inaccesibles desde el exterior: ningún puerto de base de datos está expuesto al host y la red interna en la que residen bloquea todo enrutamiento externo. La verificación se realiza tanto desde la máquina anfitriona (mediante `Test-NetConnection`) como desde un contenedor externo ajeno a la red interna del sistema.
+
+| Campo | Descripción |
+|---|---|
+| **Fuente del estímulo** | Atacante externo (desde el host o desde internet) |
+| **Estímulo** | Intento de conexión directa a MongoDB (27017), PostgreSQL (5432) o Redis (6379) mediante escaneo de puertos, cliente CLI o conexión manual |
+| **Entorno** | Sistema en operación normal con todos los contenedores activos |
+| **Artefacto** | Contenedores de bases de datos: `mongo`, `postgres`, `redis` |
+| **Respuesta** | La conexión es rechazada inmediatamente. Los puertos de las bases de datos no están publicados al host. La red `raccon_private_internal` tiene `internal: true`, lo que bloquea todo tráfico externo hacia ella |
+| **Medida de respuesta** | 0 puertos de bases de datos accesibles desde el host. Rechazo inmediato (*Connection refused*). La red interna no enruta tráfico hacia el exterior ni recibe tráfico desde el exterior |
+
+**Contramedida implementada:** configuración de la red `raccon_private_internal` con `internal: true` en `docker-compose.yml`, sin publicación de puertos (`ports`) en los contenedores de base de datos.
+
+![Diagrama del escenario 1](images/ns-sce1.jpg)
+
+**Evidencia comparativa — Prototype 2 (antes) vs. Prototype 3 (después):**
+
+*Acceso a MongoDB desde el host:*
+
+| Antes | Después |
+|---|---|
+| ![MongoDB accesible desde el host en Prototype 2](images/sce1-pre-host-mongo.png) | ![MongoDB bloqueado desde el host en Prototype 3](images/sce1-pos-host-mongo.png) |
+
+*Acceso a Redis desde el host:*
+
+| Antes | Después |
+|---|---|
+| ![Redis accesible desde el host en Prototype 2](images/sce1-pre-host-redis.png) | ![Redis bloqueado desde el host en Prototype 3](images/sce1-pos-host-redis.png) |
+
+*Acceso a MongoDB desde un contenedor externo:*
+
+| Antes | Después |
+|---|---|
+| ![MongoDB accesible desde contenedor en Prototype 2](images/sce1-pre-cont-mongo.png) | ![MongoDB bloqueado desde contenedor en Prototype 3](images/sce1-pos-cont-mongo.png) |
+
+*Acceso a Redis desde un contenedor externo:*
+
+| Antes | Después |
+|---|---|
+| ![Redis accesible desde contenedor en Prototype 2](images/sce1-pre-cont-redis.png) | ![Redis bloqueado desde contenedor en Prototype 3](images/sce1-pos-cont-redis.png) |
+
+##### 4.1.3.2. Escenario 2 — Frontend aislado de bases de datos
+
+Este escenario aborda el riesgo de movimiento lateral desde el frontend hacia las bases de datos. En Prototype 2, el contenedor `web-page` compartía red con los contenedores de base de datos, por lo que un atacante con ejecución de código en el proceso SSR del frontend podía resolver y alcanzar directamente los servicios de datos mediante `ping` o conexiones TCP directas. La contramedida consiste en restringir el contenedor `web-page` a una red de servicios separada, sin membresía en la red interna donde residen las bases de datos. Como consecuencia, el DNS embebido de Docker no resuelve los nombres de host `mongo`, `redis` ni `postgres` desde el interior del contenedor del frontend, haciendo imposible cualquier conexión directa a datos sensibles incluso si el proceso del frontend es comprometido.
+
+| Campo | Descripción |
+|---|---|
+| **Fuente del estímulo** | Atacante que ha comprometido el contenedor del frontend (SSR comprometido o XSS con ejecución en servidor) |
+| **Estímulo** | Intento de conexión directa a `mongo` (27017), `redis` (6379) o `postgres` (5432) desde dentro del contenedor `web-page` |
+| **Entorno** | Sistema en operación normal |
+| **Artefacto** | Contenedor `web-page`, redes Docker `raccon_private_services` y `raccon_private_internal` |
+| **Respuesta** | La conexión falla en resolución de nombre de host. El contenedor `web-page` pertenece únicamente a `raccon_private_services` y no tiene visibilidad de los contenedores en `raccon_private_internal`. La resolución DNS de Docker para `mongo`, `postgres` y `redis` no existe en la red de `web-page` |
+| **Medida de respuesta** | Fallo inmediato con error *bad address* al intentar resolver los hostnames de bases de datos. El movimiento lateral desde el frontend hacia datos sensibles es imposible por diseño de red |
+
+**Contramedida implementada:** asignación del contenedor `web-page` exclusivamente a la red `raccon_private_services`, sin membresía en `raccon_private_internal` donde residen las bases de datos.
+
+![Diagrama del escenario 2](images/ns-sce2.jpg)
+
+**Evidencia comparativa — Prototype 2 (antes) vs. Prototype 3 (después):**
+
+*Resolución del hostname `mongo` desde el contenedor `web-page` (ping):*
+
+| Antes | Después |
+|---|---|
+| ![ping mongo resuelve en Prototype 2](images/sce2.1-pre-host-mongo.png) | ![ping mongo falla en Prototype 3](images/sce2.1-pos-host-mongo.png) |
+
+*Conexión TCP a MongoDB desde el contenedor `web-page` (netcat):*
+
+| Antes | Después |
+|---|---|
+| ![nc -zv mongo accesible en Prototype 2](images/sce2.2-pre-host-mongo.png) | ![nc -zv mongo bloqueado en Prototype 3](images/sce2.2-pos-host-mongo.png) |
+
+##### 4.1.3.3. Escenario 3 — Reverse Proxy como único punto de entrada
+
+En Prototype 2, múltiples servicios internos publicaban puertos directamente al host: el API Gateway en el puerto 8080, el servicio de adquisición de YouTube en el puerto 8000 y el frontend web en el puerto 3000. Esto permitía a cualquier cliente saltarse el proxy inverso y acceder directamente a los servicios internos, eludiendo controles como la terminación TLS, la limitación de tasa y la inyección de cabeceras de autenticación. Este escenario valida que, en Prototype 3, ningún servicio interno tiene puertos publicados al host: el único acceso externo válido es a través de los proxies inversos, que actúan como única puerta de entrada controlada al sistema.
+
+| Campo | Descripción |
+|---|---|
+| **Fuente del estímulo** | Atacante externo |
+| **Estímulo** | Intento de acceso directo al API Gateway (8080), microservicios internos (8000, 8001, 8193, 3001) o bases de datos (27017, 5432, 6379) desde el host o internet |
+| **Entorno** | Sistema en operación normal |
+| **Artefacto** | Todos los contenedores internos: `api-gateway`, `users-service`, `youtube-service`, `google-trends-service`, `nlp-service`, `mongo`, `postgres`, `redis`, `rabbitmq`, `web-page` |
+| **Respuesta** | Todos los intentos de conexión directa a puertos internos son rechazados. Únicamente los reverse proxies (`reverse-proxy` en puerto 8081 y `reverse-proxy-web` en puertos 8443/8080) tienen puertos publicados al host |
+| **Medida de respuesta** | 10 de 10 puertos internos inaccesibles desde el host. Dos únicos puntos de entrada externamente accesibles. La topología interna no es visible ni deducible desde el exterior |
+
+**Contramedida implementada:** ningún contenedor interno tiene la directiva `ports` con binding a `0.0.0.0` en `docker-compose.yml`. Únicamente `reverse-proxy` y `reverse-proxy-web` publican puertos.
+
+![Diagrama del escenario 3](images/ns-sce3.jpg)
+
+**Evidencia comparativa — Prototype 2 (antes) vs. Prototype 3 (después):**
+
+*Acceso directo al API Gateway y servicio YouTube desde el host (antes):*
+
+![API Gateway y YouTube accesibles directamente en Prototype 2](images/sce3-pre-apigateway-youtube.png)
+
+*Acceso directo al frontend web desde el host (antes):*
+
+![Frontend web accesible directamente en Prototype 2](images/sce3-pre-webpage.png)
+
+*Todos los servicios internos inaccesibles desde el host (después):*
+
+![API Gateway, YouTube y frontend bloqueados en Prototype 3](images/sce3-pos-apigateway-youtube-webpage.png)
+
+#### 4.1.4. Implementación
+
+La implementación se realiza mediante cuatro redes Docker definidas en el `docker-compose.yml` de la raíz del repositorio:
+
+```yaml
+networks:
+  public_web:
+    driver: bridge
+    name: raccon_public_web
+
+  public_desktop:
+    driver: bridge
+    name: raccon_public_desktop
+
+  private_services:
+    driver: bridge
+    name: raccon_private_services
+
+  private_internal:
+    driver: bridge
+    name: raccon_private_internal
+    internal: true    # sin acceso a internet; solo comunicación intra-red
+```
+
+La directiva `internal: true` en `raccon_private_internal` es el mecanismo central del patrón: Docker bloquea cualquier enrutamiento de tráfico entre esa red y el exterior (host o internet), independientemente de las reglas de la aplicación.
+
+**Asignación de contenedores a redes y puertos publicados al host:**
+
+| Contenedor | Redes asignadas | Puertos publicados |
+|---|---|---|
+| `reverse-proxy-web` | `public_web`, `private_services` | 8443 (HTTPS), 8080 (HTTP → 301 HTTPS) |
+| `reverse-proxy` | `public_desktop`, `private_services` | 8081 |
+| `web-page` | `private_services` | ninguno |
+| `api-gateway` | `private_services`, `private_internal` | ninguno |
+| `users-service` | `private_services`, `private_internal` | ninguno |
+| `youtube-service` | `private_services`, `private_internal` | ninguno |
+| `google-trends-service` | `private_services`, `private_internal` | ninguno |
+| `nlp-service` | `private_services` | ninguno |
+| `postgres` | `private_internal` | ninguno |
+| `mongo` | `private_internal` | ninguno |
+| `redis` | `private_internal` | ninguno |
+| `rabbitmq` | `private_internal` | ninguno |
+
+**Flujo de acceso con segmentación aplicada:**
+
+```
+INTERNET / HOST
+     |
+     +--(HTTPS 8443 / HTTP 8080)--> reverse-proxy-web  [public_web + private_services]
+     |                                      |
+     |                                 web-page         [private_services]
+     |                                      |
+     +---------(8081)-----------> reverse-proxy         [public_desktop + private_services]
+                                            |
+                                       api-gateway      [private_services + private_internal]
+                                            |
+                         +-----------------+------------------+
+                         |                 |                  |
+                   users-service     youtube-service  google-trends-service
+                   [priv_svc +       [priv_svc +      [priv_svc +
+                    priv_int]         priv_int]         priv_int]
+                         |                 |                  |
+                  [postgres, redis]  [mongo, redis,    [mongo]
+                                     rabbitmq]
+                                          ↑
+                    raccon_private_internal (internal=true — sin acceso desde fuera)
+```
+
+La red `raccon_private_services` permite que los microservicios realicen llamadas salientes a APIs externas (YouTube Data API, Google Trends API, Nvidia NIM API). La red `raccon_private_internal` está completamente aislada del exterior y contiene únicamente las bases de datos y los servicios que necesitan accederlas directamente.
+
+#### 4.1.5. Pruebas
+
+Las pruebas del patrón se encuentran en el directorio `reverse-proxy/`. Los grupos más relevantes para Network Segmentation son los **Grupos 1, 5 y 6** de `test_security_comparison.py`:
+
+- **Grupo 1 — Aislamiento de servicios:** verifica que los puertos 8080, 3001, 8000, 8001, 8193, 5432, 27017 y 6379 son inaccesibles desde el host (connection refused).
+- **Grupo 5 — Port bindings de Docker:** verifica mediante `docker compose ps` que solo `reverse-proxy` y `reverse-proxy-web` tienen puertos publicados (`0.0.0.0`) y que todos los demás contenedores son internos.
+- **Grupo 6 — Aislamiento de red Docker:** verifica que `internal: true` está configurado en `docker-compose.yml` y que las redes públicas y privadas están correctamente separadas.
+
+La prueba del Escenario 2 (frontend aislado de bases de datos) se ejecuta manualmente entrando al contenedor `web-page`:
+
+```bash
+docker exec -it arquisoft-web-page-1 sh
+# Intentar alcanzar las bases de datos (deben fallar):
+ping mongo          # → ping: bad address 'mongo'
+nc -zv mongo 27017  # → nc: bad address 'mongo'
+```
+
+**Ejecución de la suite completa:**
+
+```bash
+# Desde la raíz del repositorio umbrella, con el sistema desplegado
+python3 reverse-proxy/test_security_comparison.py
+python3 reverse-proxy/test_confidenciality.py
+bash   reverse-proxy/test_confidenciality.sh
+```
+
+**Resultados verificados con el sistema desplegado:**
+
+```
+SUMMARY: 32 passed, 0 failed, 28 protections confirmed
+
+Protecciones confirmadas relevantes a Network Segmentation:
+  ✓ Puerto 27017 (MongoDB)     — BLOQUEADO desde el host (connection refused)
+  ✓ Puerto 5432  (PostgreSQL)  — BLOQUEADO desde el host (connection refused)
+  ✓ Puerto 6379  (Redis)       — BLOQUEADO desde el host (connection refused)
+  ✓ Puerto 8080  (API Gateway) — BLOQUEADO desde el host (connection refused)
+  ✓ Puerto 3001  (Users Svc)   — BLOQUEADO desde el host (connection refused)
+  ✓ Puerto 8000  (YouTube Svc) — BLOQUEADO desde el host (connection refused)
+  ✓ Puerto 8001  (Trends Svc)  — BLOQUEADO desde el host (connection refused)
+  ✓ Puerto 8193  (NLP Svc)     — BLOQUEADO desde el host (connection refused)
+  ✓ web-page → mongo           — INALCANZABLE (bad address — sin DNS en private_internal)
+  ✓ web-page → redis           — INALCANZABLE (bad address)
+  ✓ web-page → postgres        — INALCANZABLE (bad address)
+  ✓ internal=true configurado en raccon_private_internal
+  ✓ Solo reverse-proxy (8081) y reverse-proxy-web (8443/8080) accesibles externamente
+```
+
+---
+
+## 5. Prototype
+
+### 5.1. Instructions
 
 _Prerrequisitos:_
 
